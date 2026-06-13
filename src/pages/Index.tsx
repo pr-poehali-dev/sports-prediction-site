@@ -254,14 +254,29 @@ const Index = () => {
                 </div>
               </div>
 
-              <h3 className="section-title text-lg text-white mb-1">{f.match}</h3>
-              {!f.result && (
-                <div className="text-white/40 text-xs font-golos mb-4 flex items-center gap-1">
-                  <Icon name="Clock" size={11} />
-                  {f.date}
+              {/* Матч скрыт до оплаты */}
+              {f.result !== null ? (
+                <>
+                  <h3 className="section-title text-lg text-white mb-1">{f.match}</h3>
+                  <div className="mb-4" />
+                </>
+              ) : (
+                <div className="mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Icon name="Lock" size={14} className="text-orange-400/60" />
+                    <span className="section-title text-lg text-white/30 select-none tracking-widest">
+                      ██████ — ██████
+                    </span>
+                  </div>
+                  <div
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-golos"
+                    style={{ backgroundColor: "rgba(255,107,0,0.08)", border: "1px solid rgba(255,107,0,0.2)" }}
+                  >
+                    <Icon name="Lock" size={11} className="text-orange-400/70" />
+                    <span className="text-orange-400/70">Матч откроется после оплаты</span>
+                  </div>
                 </div>
               )}
-              {f.result && <div className="mb-4" />}
 
               <div className="mb-5">
                 <div className="flex justify-between text-xs mb-1">
@@ -282,11 +297,6 @@ const Index = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="odds-badge">× {f.odds}</span>
-                  {f.result === null && (
-                    <div className="text-white/50 text-xs font-golos blur-sm select-none">
-                      {f.prediction}
-                    </div>
-                  )}
                   {f.result !== null && (
                     <div className="text-white/70 text-xs font-golos">{f.prediction}</div>
                   )}
