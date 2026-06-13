@@ -1,0 +1,12 @@
+{
+  "tests": [
+    {
+      "name": "Получить список прогнозов",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": { "forecasts": [] },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
