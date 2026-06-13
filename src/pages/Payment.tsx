@@ -2,6 +2,9 @@ import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Icon from "@/components/ui/icon";
+import { useYookassa, openPaymentPage, isValidEmail } from "@/components/extensions/yookassa/useYookassa";
+
+const YOOKASSA_API_URL = "https://functions.poehali.dev/bd7f99c9-18a9-4eec-845e-42dbed91ee81";
 
 const forecastsData: Record<
   number,
@@ -46,25 +49,45 @@ const Payment = () => {
   const navigate = useNavigate();
   const forecast = forecastsData[Number(id)];
 
-  const [step, setStep] = useState<"details" | "pay" | "success">("details");
+  const [step, setStep] = useState<"details" | "pay">("details");
   const [email, setEmail] = useState("");
-  const [cardNum, setCardNum] = useState("");
-  const [expiry, setExpiry] = useState("");
-  const [cvv, setCvv] = useState("");
+  const [emailError, setEmailError] = useState("");
 
-  const formatCard = (val: string) => {
-    return val
-      .replace(/\D/g, "")
-      .slice(0, 16)
-      .replace(/(\d{4})/g, "$1 ")
-      .trim();
+  const returnUrl = `${window.location.origin}/payment-success`;
+
+  const { createPayment, isLoading, error } = useYookassa({
+    apiUrl: YOOKASSA_API_URL,
+    onError: (err) => console.error("Payment error:", err),
+  });
+
+  const handlePay = async () => {
+    if (!forecast) return;
+    const response = await createPayment({
+      amount: forecast.price,
+      userEmail: email,
+      description: `Прогноз на матч: ${forecast.match}`,
+      returnUrl,
+      cartItems: [
+        {
+          id: String(forecast.id),
+          name: `Прогноз: ${forecast.match}`,
+          price: forecast.price,
+          quantity: 1,
+        },
+      ],
+    });
+    if (response?.payment_url) {
+      openPaymentPage(response.payment_url);
+    }
   };
 
-  const formatExpiry = (val: string) => {
-    return val
-      .replace(/\D/g, "")
-      .slice(0, 4)
-      .replace(/(\d{2})(\d)/, "$1/$2");
+  const handleEmailNext = () => {
+    if (!isValidEmail(email)) {
+      setEmailError("Введите корректный email");
+      return;
+    }
+    setEmailError("");
+    setStep("pay");
   };
 
   if (!forecast) {
@@ -78,58 +101,6 @@ const Payment = () => {
               На главную
             </button>
           </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (step === "success") {
-    return (
-      <div className="min-h-screen" style={{ backgroundColor: "#0A0C12" }}>
-        <Navbar />
-        <div className="flex items-center justify-center min-h-screen px-4 pt-16">
-          <div
-            className="w-full max-w-md rounded-2xl p-8 text-center neon-border"
-            style={{ backgroundColor: "#111420" }}
-          >
-            <div
-              className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"
-              style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.4)" }}
-            >
-              <Icon name="CheckCircle" size={40} className="text-green-400" />
-            </div>
-            <h2 className="section-title text-2xl text-white uppercase mb-2">Оплата прошла!</h2>
-            <p className="text-white/50 font-golos text-sm mb-6 leading-relaxed">
-              Прогноз на матч <span className="text-white/80">{forecast.match}</span> отправлен в
-              ваш личный кабинет. Проверьте раздел «Мои прогнозы».
-            </p>
-            <div
-              className="rounded-xl p-4 mb-6 border"
-              style={{
-                backgroundColor: "rgba(34,197,94,0.05)",
-                borderColor: "rgba(34,197,94,0.2)",
-              }}
-            >
-              <div className="flex items-center justify-center gap-2 text-green-400">
-                <Icon name="MessageSquare" size={16} />
-                <span className="font-oswald text-sm uppercase tracking-wider">
-                  Прогноз доступен в кабинете
-                </span>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <Link to="/profile" className="flex-1">
-                <button className="btn-orange w-full py-3 rounded-xl text-sm uppercase tracking-wider">
-                  Личный кабинет
-                </button>
-              </Link>
-              <Link to="/" className="flex-1">
-                <button className="w-full py-3 rounded-xl text-sm font-oswald uppercase tracking-wider border border-white/15 text-white/60 hover:border-white/30 hover:text-white/80 transition-all">
-                  Главная
-                </button>
-              </Link>
-            </div>
-          </div>
         </div>
       </div>
     );
@@ -220,7 +191,7 @@ const Payment = () => {
           <div className="md:col-span-3">
             <div className="rounded-2xl p-6 neon-border" style={{ backgroundColor: "#111420" }}>
               <h2 className="section-title text-xl text-white uppercase mb-6">
-                {step === "details" ? "Контактные данные" : "Оплата картой"}
+                {step === "details" ? "Контактные данные" : "Оплата через ЮKassa"}
               </h2>
 
               {/* Progress steps */}
@@ -263,19 +234,22 @@ const Payment = () => {
                 <div className="space-y-4">
                   <div>
                     <label className="text-white/50 text-xs font-oswald uppercase tracking-wider block mb-2">
-                      Email для уведомлений
+                      Email для получения прогноза
                     </label>
                     <input
                       type="email"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => { setEmail(e.target.value); setEmailError(""); }}
                       placeholder="your@email.com"
                       className="w-full px-4 py-3 rounded-xl text-white font-golos text-sm outline-none transition-all"
                       style={{
                         backgroundColor: "#0A0C12",
-                        border: "1px solid rgba(255,255,255,0.1)",
+                        border: `1px solid ${emailError ? "rgba(239,68,68,0.5)" : "rgba(255,255,255,0.1)"}`,
                       }}
                     />
+                    {emailError && (
+                      <p className="text-red-400 text-xs font-golos mt-1">{emailError}</p>
+                    )}
                   </div>
                   <div
                     className="rounded-xl p-4 flex items-start gap-3"
@@ -286,11 +260,11 @@ const Payment = () => {
                   >
                     <Icon name="Bell" size={16} className="text-blue-400 mt-0.5 flex-shrink-0" />
                     <p className="text-white/50 text-xs font-golos leading-relaxed">
-                      На этот email придёт подтверждение. Также прогноз будет в личном кабинете.
+                      На этот email придёт подтверждение оплаты. Прогноз будет доступен в личном кабинете.
                     </p>
                   </div>
                   <button
-                    onClick={() => setStep("pay")}
+                    onClick={handleEmailNext}
                     className="btn-orange w-full py-3.5 rounded-xl text-sm uppercase tracking-wider mt-2"
                   >
                     Продолжить к оплате
@@ -299,94 +273,66 @@ const Payment = () => {
               )}
 
               {step === "pay" && (
-                <div className="space-y-4">
-                  {/* Payment methods */}
-                  <div className="flex gap-2 mb-2">
-                    {["Карта", "СБП"].map((m) => (
-                      <button
-                        key={m}
-                        className={`px-4 py-2 rounded-xl text-xs font-oswald uppercase tracking-wider border transition-all ${
-                          m === "Карта"
-                            ? "border-orange-500 text-orange-500 bg-orange-500/10"
-                            : "border-white/15 text-white/40"
-                        }`}
-                      >
-                        {m}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div>
-                    <label className="text-white/50 text-xs font-oswald uppercase tracking-wider block mb-2">
-                      Номер карты
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={cardNum}
-                        onChange={(e) => setCardNum(formatCard(e.target.value))}
-                        placeholder="0000 0000 0000 0000"
-                        className="w-full px-4 py-3 rounded-xl text-white font-golos text-sm outline-none pr-12"
-                        style={{
-                          backgroundColor: "#0A0C12",
-                          border: "1px solid rgba(255,255,255,0.1)",
-                          letterSpacing: "1px",
-                        }}
-                      />
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <Icon name="CreditCard" size={18} className="text-white/20" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-white/50 text-xs font-oswald uppercase tracking-wider block mb-2">
-                        Срок
-                      </label>
-                      <input
-                        type="text"
-                        value={expiry}
-                        onChange={(e) => setExpiry(formatExpiry(e.target.value))}
-                        placeholder="MM/YY"
-                        className="w-full px-4 py-3 rounded-xl text-white font-golos text-sm outline-none"
-                        style={{
-                          backgroundColor: "#0A0C12",
-                          border: "1px solid rgba(255,255,255,0.1)",
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-white/50 text-xs font-oswald uppercase tracking-wider block mb-2">
-                        CVV
-                      </label>
-                      <input
-                        type="password"
-                        value={cvv}
-                        onChange={(e) => setCvv(e.target.value.slice(0, 3))}
-                        placeholder="•••"
-                        className="w-full px-4 py-3 rounded-xl text-white font-golos text-sm outline-none"
-                        style={{
-                          backgroundColor: "#0A0C12",
-                          border: "1px solid rgba(255,255,255,0.1)",
-                        }}
-                      />
-                    </div>
-                  </div>
-
+                <div className="space-y-5">
+                  {/* Email summary */}
                   <div
-                    className="flex items-center gap-2 text-xs text-white/30 font-golos"
+                    className="rounded-xl p-3 flex items-center gap-2"
+                    style={{ backgroundColor: "#0A0C12", border: "1px solid rgba(255,255,255,0.08)" }}
                   >
-                    <Icon name="Lock" size={12} className="text-green-500" />
-                    Защищённое соединение · SSL шифрование
+                    <Icon name="Mail" size={14} className="text-white/30" />
+                    <span className="text-white/50 text-sm font-golos">{email}</span>
+                    <button
+                      onClick={() => setStep("details")}
+                      className="ml-auto text-orange-400/70 text-xs font-oswald hover:text-orange-400 transition-colors uppercase tracking-wider"
+                    >
+                      Изменить
+                    </button>
                   </div>
+
+                  {/* YooKassa badge */}
+                  <div
+                    className="rounded-xl p-4 flex items-center gap-3"
+                    style={{ backgroundColor: "rgba(255,107,0,0.05)", border: "1px solid rgba(255,107,0,0.2)" }}
+                  >
+                    <Icon name="ShieldCheck" size={20} className="text-orange-400 flex-shrink-0" />
+                    <div>
+                      <p className="text-white/80 text-sm font-golos font-medium">Оплата через ЮKassa</p>
+                      <p className="text-white/40 text-xs font-golos mt-0.5">
+                        Банковская карта, СБП, ЮMoney — всё защищено SSL
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Error */}
+                  {error && (
+                    <div
+                      className="rounded-xl p-3 flex items-center gap-2"
+                      style={{ backgroundColor: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.3)" }}
+                    >
+                      <Icon name="AlertCircle" size={16} className="text-red-400 flex-shrink-0" />
+                      <p className="text-red-400 text-xs font-golos">{error.message}</p>
+                    </div>
+                  )}
 
                   <button
-                    onClick={() => setStep("success")}
-                    className="btn-orange w-full py-3.5 rounded-xl text-base uppercase tracking-wider animate-pulse-glow"
+                    onClick={handlePay}
+                    disabled={isLoading}
+                    className="btn-orange w-full py-4 rounded-xl text-base uppercase tracking-wider animate-pulse-glow disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    Оплатить {forecast.price} ₽
+                    {isLoading ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Icon name="Loader" size={18} className="animate-spin" />
+                        Создаём платёж...
+                      </span>
+                    ) : (
+                      `Оплатить ${forecast.price} ₽`
+                    )}
                   </button>
+
+                  <div className="flex items-center justify-center gap-2 text-xs text-white/25 font-golos">
+                    <Icon name="Lock" size={12} className="text-green-500" />
+                    Защищённое соединение · ЮKassa · SSL
+                  </div>
 
                   <button
                     onClick={() => setStep("details")}
