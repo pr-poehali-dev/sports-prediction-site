@@ -1,0 +1,27 @@
+{
+  "tests": [
+    {
+      "name": "Register duplicate user",
+      "method": "POST",
+      "path": "/?action=register",
+      "body": {"email": "testuser99@example.com", "password": "test123", "name": "Тест"},
+      "expectedStatus": 409,
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Login with wrong password",
+      "method": "POST",
+      "path": "/?action=login",
+      "body": {"email": "testuser99@example.com", "password": "wrongpass"},
+      "expectedStatus": 401,
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Profile without token",
+      "method": "GET",
+      "path": "/?action=profile",
+      "expectedStatus": 401,
+      "bodyMatcher": "partial"
+    }
+  ]
+}

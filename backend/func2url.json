@@ -1,4 +1,5 @@
 {
+  "auth": "https://functions.poehali.dev/e6365229-ded0-4698-adfe-1810fefb92bf",
   "forecasts": "https://functions.poehali.dev/6559d529-8bdd-4e54-aa52-25fc5461017d",
   "payment-request": "https://functions.poehali.dev/ec6e7ae0-d9ba-4575-abe3-b05c5b7e0af7",
   "yookassa-yookassa": "https://functions.poehali.dev/bd7f99c9-18a9-4eec-845e-42dbed91ee81",

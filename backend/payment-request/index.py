@@ -146,23 +146,43 @@ def confirm_payment(event: dict) -> dict:
         UPDATE payment_requests
         SET status = 'confirmed', confirmed_at = NOW()
         WHERE id = %s AND status = 'pending'
-        RETURNING id, client_email, forecast_name
+        RETURNING id, client_email, forecast_name, forecast_id
         """,
         (request_id,),
     )
     row = cur.fetchone()
+
+    if not row:
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"statusCode": 404, "headers": CORS, "body": json.dumps({"error": "Заявка не найдена"})}
+
+    req_id, client_email, forecast_name, forecast_id = row
+
+    # Ищем пользователя по email и открываем прогноз
+    cur.execute("SELECT id FROM users WHERE email = %s", (client_email,))
+    user_row = cur.fetchone()
+    if user_row and forecast_id:
+        user_id = user_row[0]
+        cur.execute(
+            """
+            INSERT INTO user_forecasts (user_id, forecast_id, payment_request_id)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (user_id, forecast_id) DO NOTHING
+            """,
+            (user_id, forecast_id, req_id),
+        )
+
     conn.commit()
     cur.close()
     conn.close()
-
-    if not row:
-        return {"statusCode": 404, "headers": CORS, "body": json.dumps({"error": "Заявка не найдена"})}
 
     return {
         "statusCode": 200,
         "headers": CORS,
         "body": json.dumps({
             "success": True,
-            "message": f"Оплата подтверждена для {row[1]}",
+            "message": f"Оплата подтверждена для {client_email}",
         }),
     }
