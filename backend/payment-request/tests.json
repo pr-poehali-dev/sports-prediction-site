@@ -1,0 +1,26 @@
+{
+  "tests": [
+    {
+      "name": "Создать заявку на оплату",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "forecast_id": 1,
+        "forecast_name": "Реал Мадрид — Барселона",
+        "forecast_price": 990,
+        "client_email": "test@test.com",
+        "client_name": "Иван"
+      },
+      "expectedStatus": 200,
+      "expectedBody": { "success": true },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Список заявок без ключа — ошибка",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 403,
+      "bodyMatcher": "partial"
+    }
+  ]
+}
